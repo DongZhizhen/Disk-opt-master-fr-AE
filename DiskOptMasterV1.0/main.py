@@ -11,6 +11,7 @@
 """
 
 import numpy as np
+import math
 import pandas as pd
 import numpy as py
 import xlwt as xlwt
@@ -30,9 +31,33 @@ right_2 = np.array([couplednodes[:, mn + 1]])
 right_3 = np.array([[2669, 2672, 2681, 2684]])
 right = np.vstack((right_1.T, right_2.T, right_3.T))
 
+
 # 计算chebyshev点
+def chebyshev(a_t, b_t, n_t):  # k坐标变换，多项式阶数
+    k1 = (a_t + b_t) / 2
+    k2 = (-a_t + b_t) / 2
+    c = np.zeros(n_t)
+
+    for i in range(n_t):
+        c_temp = (k1 + k2 * math.cos((2 * i + 1) * math.pi / (2 * (n_t + 1))))
+        c[i] = float('%.2f' % c_temp)
+
+    return c
+
+
 a = 32.5  # 范围
 b1 = 95
 b2 = 98.8
 n = 8  # 阶数-1
+
+left_cheby_r = chebyshev(a, b1, n)
+right_cheby_r = chebyshev(a, b2, n)
+
+''' 导入全部节点信息（编号、坐标）极坐标换算 '''
+nodeinitial = pd.read_excel(r"nodedata.xlsx", sheet_name='datapaper')
+nn = np.array([nodeinitial[:, 0]])
+x = np.array([nodeinitial[:, 1]])
+y = np.array([nodeinitial[:, 2]])
+z = np.array([nodeinitial[:, 3]])
+
 
