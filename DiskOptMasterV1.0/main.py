@@ -13,6 +13,7 @@
 import numpy as np
 import math
 import pandas as pd
+from numpy import exp, abs, angle
 import numpy as py
 import xlwt as xlwt
 
@@ -54,10 +55,37 @@ left_cheby_r = chebyshev(a, b1, n)
 right_cheby_r = chebyshev(a, b2, n)
 
 ''' 导入全部节点信息（编号、坐标）极坐标换算 '''
-nodeinitial = pd.read_excel(r"nodedata.xlsx", sheet_name='datapaper')
-nn = np.array([nodeinitial[:, 0]])
-x = np.array([nodeinitial[:, 1]])
-y = np.array([nodeinitial[:, 2]])
-z = np.array([nodeinitial[:, 3]])
+nodeini = pd.read_excel(r"nodedata.xlsx", sheet_name='datapaper')
+nodeinitial = np.array(nodeini)
+nn = np.array([nodeinitial[:, 0]]).astype(int)
+xini = np.array([nodeinitial[:, 1]])
+yini = np.array([nodeinitial[:, 2]])
+zini = np.array([nodeinitial[:, 3]])
+
+
+def cart2pol(x_t, y_t, z_t=None):
+    rho_t = np.sqrt(x_t ** 2 + y_t ** 2)
+    phi_t = np.arctan2(y_t, x_t)
+    if z_t is None:
+        return (rho_t, phi_t)
+    else:
+        return (rho_t, phi_t, z_t)
+
+
+def pol2cart(rho_t, phi_t, z_t=None):
+    x_t = rho_t * np.cos(phi_t)
+    y_t = rho_t * np.sin(phi_t)
+    if z_t is None:
+        return (x_t, y_t)
+    else:
+        return (x_t, y_t, z_t)
+
+
+th, r, z = cart2pol(xini, zini, yini)
+nodetrans = np.hstack((r.T, z.T, nn.T, th.T))  # 节点、单元全部信息整合
+
+for i in range(len(nodetrans)):
+    left_index[i, :] =
+
 
 
