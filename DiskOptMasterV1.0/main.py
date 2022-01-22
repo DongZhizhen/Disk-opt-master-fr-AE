@@ -99,26 +99,45 @@ def del_repeatnum(s):
     return s1
 
 
-th_unique = np.array(del_repeatnum(th_t.T)).T             # 周向各层角坐标提取
-zn = th_unique.shape[1]-1                                 # 周向层数
-delta_th = (np.max(th_unique) - np.min(th_unique)) / zn   # 周向夹角
+th_unique = np.array(del_repeatnum(th_t.T)).T  # 周向各层角坐标提取
+zn = th_unique.shape[1] - 1  # 周向层数
+delta_th = (np.max(th_unique) - np.min(th_unique)) / zn  # 周向夹角
 
 ''' 2D端面内节点关联 '''
-facenodes = pd.read_excel(r"nodedata.xlsx", sheet_name='dataface', header=None)   # 导入左边界节点、坐标
+# 2D端面内节点期望坐标计算
+facenodes = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='dataface', header=None))  # 导入左边界节点、坐标
 copnds1 = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='core', header=None))[:, :2]
 copnds2 = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='expanded', header=None))[:, :2]
 copnds = np.vstack((copnds1, copnds2))
 
-deltadis_r = np.zeros(copnds.shape[0])
-deltadis_z = np.zeros(copnds.shape[0])
-for i in range(copnds.shape[0]):
-    discopnds_r = nodetrans[copnds[i, 1], 0] - nodetrans[copnds[i, 0], 0]
-    discopnds_z = nodetrans[copnds[i, 1], 1]-nodetrans[copnds[i, 0], 1]
-    deltadis_r[i] = discopnds_r / (mn+1)
-    deltadis_z[i] = discopnds_z / (mn+1)
-
-coupled_2D_temp = np.zeros((copnds.shape[0], mn+1))  # 初始化全部端面耦合节点在APDL网格中的索引
-coupled_2D_ndr = np.zeros((copnds.shape[0], mn+1))  # 初始化全部端面耦合节点在APDL网格中的r坐标
-coupled_2D_ndz = np.zeros((copnds.shape[0], mn+1))  # 初始化全部端面耦合节点在APDL网格中的z坐标
+deltadis_r = np.zeros((copnds.shape[0], 1))
+deltadis_z = np.zeros((copnds.shape[0], 1))
 
 for i in range(copnds.shape[0]):
+    discopnds_r = nodetrans[copnds[i, 1] - 1, 0] - nodetrans[copnds[i, 0] - 1, 0]
+    discopnds_z = nodetrans[copnds[i, 1] - 1, 1] - nodetrans[copnds[i, 0] - 1, 1]
+    deltadis_r[i] = discopnds_r / (mn + 1)
+    deltadis_z[i] = discopnds_z / (mn + 1)
+
+coupled_2D_temp = np.zeros((copnds.shape[0], mn + 2))  # 初始化全部端面耦合节点在APDL网格中的索引
+coupled_2D_ndr = np.zeros((copnds.shape[0], mn + 2))  # 初始化全部端面耦合节点在APDL网格中的r坐标
+coupled_2D_ndz = np.zeros((copnds.shape[0], mn + 2))  # 初始化全部端面耦合节点在APDL网格中的z坐标
+
+for i in range(copnds.shape[0]):
+    coupled_2D_ndr[i, 0] = nodetrans[copnds[i, 0] - 1, 0]
+    coupled_2D_ndr[i, mn + 1] = nodetrans[copnds[i, 1] - 1, 0]
+    coupled_2D_ndz[i, 0] = nodetrans[copnds[i, 0] - 1, 1]
+    coupled_2D_ndz[i, mn + 1] = nodetrans[copnds[i, 1] - 1, 1]
+    for j in range(1, mn + 1):
+        coupled_2D_ndr[i, j] = nodetrans[copnds[i, 0] - 1, 0] + deltadis_r[i] * j
+        coupled_2D_ndz[i, j] = nodetrans[copnds[i, 0] - 1, 1] + deltadis_z[i] * j
+
+# 2D端面内节点索引匹配
+deltadis_t = np.sqrt(deltadis_r ** 2 + deltadis_z ** 2)
+trshd = np.min(deltadis_t) / 3         # 比较关键
+
+temp_rz_face = np.zeros((facenodes.shape[0], 3))   # 端面nrz坐标索引
+for i in range(facenodes.shape[0]):
+    temp_rz_face[i, 0] = facenodes[i, 0]
+    temp_rz_face[i, 1] = nodetrans[int(facenodes[i, 0] - 1), 0]
+    temp_rz_face[i, 2] = nodetrans[int(facenodes[i, 0] - 1), 1]
