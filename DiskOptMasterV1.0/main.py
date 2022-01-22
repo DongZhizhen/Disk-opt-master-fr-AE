@@ -67,9 +67,9 @@ def cart2pol(x_t, y_t, z_t=None):
     rho_t = np.sqrt(x_t ** 2 + y_t ** 2)
     phi_t = np.arctan2(y_t, x_t)
     if z_t is None:
-        return (rho_t, phi_t)
+        return (phi_t, rho_t)
     else:
-        return (rho_t, phi_t, z_t)
+        return (phi_t, rho_t, z_t)
 
 
 def pol2cart(rho_t, phi_t, z_t=None):
@@ -84,8 +84,23 @@ def pol2cart(rho_t, phi_t, z_t=None):
 th, r, z = cart2pol(xini, zini, yini)
 nodetrans = np.hstack((r.T, z.T, nn.T, th.T))  # 节点、单元全部信息整合
 
-for i in range(len(nodetrans)):
-    left_index[i, :] =
+# left、right网格索引同节点编号
 
 
+''' 周向各层角坐标提取 '''
+th_t = np.around(th, 4)
 
+
+def del_repeatnum(s):
+    s1 = []
+    for i in s:
+        if i not in s1:
+            s1.append(i)
+    return s1
+
+
+th_unique = np.array(del_repeatnum(th_t.T)).T             # 周向各层角坐标提取
+zn = th_unique.shape[1]-1                                 # 周向层数
+delta_th = (np.max(th_unique) - np.min(th_unique)) / zn   # 周向夹角
+
+''' 2D端面内节点关联 '''
