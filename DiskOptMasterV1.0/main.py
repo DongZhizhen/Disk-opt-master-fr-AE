@@ -55,7 +55,7 @@ left_cheby_r = chebyshev(a, b1, n)
 right_cheby_r = chebyshev(a, b2, n)
 
 ''' 导入全部节点信息（编号、坐标）极坐标换算 '''
-nodeini = pd.read_excel(r"nodedata.xlsx", sheet_name='datapaper')
+nodeini = pd.read_excel(r"nodedata.xlsx", sheet_name='datapaper', header=None)
 nodeinitial = np.array(nodeini)
 nn = np.array([nodeinitial[:, 0]]).astype(int)
 xini = np.array([nodeinitial[:, 1]])
@@ -104,3 +104,21 @@ zn = th_unique.shape[1]-1                                 # 周向层数
 delta_th = (np.max(th_unique) - np.min(th_unique)) / zn   # 周向夹角
 
 ''' 2D端面内节点关联 '''
+facenodes = pd.read_excel(r"nodedata.xlsx", sheet_name='dataface', header=None)   # 导入左边界节点、坐标
+copnds1 = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='core', header=None))[:, :2]
+copnds2 = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='expanded', header=None))[:, :2]
+copnds = np.vstack((copnds1, copnds2))
+
+deltadis_r = np.zeros(copnds.shape[0])
+deltadis_z = np.zeros(copnds.shape[0])
+for i in range(copnds.shape[0]):
+    discopnds_r = nodetrans[copnds[i, 1], 0] - nodetrans[copnds[i, 0], 0]
+    discopnds_z = nodetrans[copnds[i, 1], 1]-nodetrans[copnds[i, 0], 1]
+    deltadis_r[i] = discopnds_r / (mn+1)
+    deltadis_z[i] = discopnds_z / (mn+1)
+
+coupled_2D_temp = np.zeros((copnds.shape[0], mn+1))  # 初始化全部端面耦合节点在APDL网格中的索引
+coupled_2D_ndr = np.zeros((copnds.shape[0], mn+1))  # 初始化全部端面耦合节点在APDL网格中的r坐标
+coupled_2D_ndz = np.zeros((copnds.shape[0], mn+1))  # 初始化全部端面耦合节点在APDL网格中的z坐标
+
+for i in range(copnds.shape[0]):
