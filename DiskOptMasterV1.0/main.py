@@ -15,11 +15,12 @@ import math
 import pandas as pd
 from functools import reduce
 from numpy import exp, abs, angle
-import numpy as py
-import xlwt as xlwt
+from scipy import interpolate
+import pylab as pl
 
 mn = 4  # 网格的中间节点数（输入！！！）
-Size = 50        # 粒子组数
+bn = 1  # 叶片网格层数
+Size = 50  # 粒子组数
 
 # 导入数据
 # couplednodes = pd.read_table(r"couplednodes.txt", sep=",", header=None) # 按行读文本
@@ -90,6 +91,7 @@ nodetrans = np.hstack((r.T, z.T, nn.T, th.T))  # 节点、单元全部信息整�
 
 
 ''' 周向各层角坐标提取 '''
+facenodes = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='dataface', header=None))  # 导入左边界节点、坐标
 th_t = np.around(th, 4)
 
 
@@ -105,9 +107,22 @@ th_unique = np.array(del_repeatnum(th_t.T)).T  # 周向各层角坐标提取
 zn = th_unique.shape[1] - 1  # 周向层数
 delta_th = (np.max(th_unique) - np.min(th_unique)) / zn  # 周向夹角
 
+sita_2 = np.sort(th_unique, axis=1)  # 正序，非际序
+sita_3 = abs(np.sort(-th_unique, axis=1))  # 倒序，实际序
+
+# 极坐标按角坐标分类，按实际序
+sita_part = np.zeros((int((nodetrans.shape[0] - facenodes.shape[0] * sita_2.shape[1]) / (bn + 1) + facenodes.shape[0]),
+                      facenodes.shape[1], sita_2.shape[1]))  # 注意叶片网格层数
+for i in range(sita_2.shape[1]):
+    tt = 0
+    for j in range(nodetrans.shape[0]):
+        if (nodetrans[j, 3] <= sita_3[0, i] + 0.001).all() and (nodetrans[j, 3] >= sita_3[0, i] - 0.001).all():
+            for k in range(facenodes.shape[1]):
+                sita_part[tt, k, i] = nodetrans[j, k]
+            tt += 1
+
 ''' 2D端面内节点关联 '''
 # 2D端面内节点期望坐标计算
-facenodes = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='dataface', header=None))  # 导入左边界节点、坐标
 copnds1 = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='core', header=None))[:, :2]
 copnds2 = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='expanded', header=None))[:, :2]
 copnds = np.vstack((copnds1, copnds2))
@@ -158,19 +173,74 @@ for i in range(copnds.shape[0]):
 
 tt = 0
 coupled_2D_index = np.zeros((copnds.shape[0] * (mn + 2), 1))
-for j in range(mn + 2):           # 数据整理
+for j in range(mn + 2):  # 数据整理
     for i in range(copnds.shape[0]):
         coupled_2D_index[tt, 0] = coupled_2D_temp[i, j]
         tt += 1
 
-coupled_2D_ntr = np.zeros((coupled_2D_index.shape[0], 1))             # 后续使用
-coupled_2D_ntz = np.zeros((coupled_2D_index.shape[0], Size))           # 后续使用
+coupled_2D_ntr = np.zeros((coupled_2D_index.shape[0], 1))  # 后续使用
+coupled_2D_ntz = np.zeros((coupled_2D_index.shape[0], Size))  # 后续使用
 for i in range(coupled_2D_index.shape[0]):
     coupled_2D_ntr[i, 0] = nodetrans[int(coupled_2D_index[i, 0]) - 1, 0]
 
 # 3D待优化区内节点索引匹配
-trshd = 0.2    # 比较关键
-coupled_3D_index = np.zeros((coupled_2D_index.shape[0], mn+2))
-coupled_3D_index[:, 5] = coupled_2D_index
+trshd = 0.2  # 比较关键
+coupled_3D_index = np.zeros((coupled_2D_index.shape[0], mn + 2))
+coupled_3D_index[:, 5] = coupled_2D_index[:, 0]
 for i in range(coupled_2D_index.shape[0]):
     for j in range(zn):
+        sita_temp = sita_part[:, :, j]
+        temp2_r_index = sita_temp[
+            np.intersect1d(np.where(sita_temp[:, 0] < nodetrans[int(coupled_2D_index[i]), 0] + trshd),
+                           np.where(nodetrans[int(coupled_2D_index[i]), 0] - trshd < sita_temp[:, 0])), 0]
+        temp2_z_index = sita_temp[
+            np.intersect1d(np.where(sita_temp[:, 1] < nodetrans[int(coupled_2D_index[i]), 1] + trshd * 2),
+                           np.where(nodetrans[int(coupled_2D_index[i]), 1] - trshd * 2 < sita_temp[:, 1])), 1]
+
+        for k in temp2_r_index:  # 提高通用性
+            if np.intersect1d(k, temp2_z_index) is not None:
+                coupled_3D_index[i, j] = sita_temp[int(k), 2]
+
+# 3D补充节(过渡区)节点索引匹配
+trshd = 0.001  # 比较关键
+suply = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='suply', header=None))[:32,
+        :]  # 从mapping文件的suply_det变量获取，输入excel
+coupled_2D_index = np.vstack([coupled_2D_index, suply])  # 2D补充
+
+suply_r = np.zeros((suply.shape[0], 1))
+suply_z = np.zeros((suply.shape[0], 1))
+for i in range(suply.shape[0]):
+    suply_r[i] = nodetrans[int(suply[i]) - 1, 0]
+    suply_z[i] = nodetrans[int(suply[i]) - 1, 1]
+
+coupled_3D_temp = np.zeros((1, mn + 2))
+for i in range(suply.shape[0]):
+    tt = 0
+    temp3_r_index = np.intersect1d(np.where(nodetrans[:, 0] < suply_r[i] + trshd),
+                                   np.where(suply_r[i] - trshd < nodetrans[:, 0]))
+    temp3_z_index = np.intersect1d(np.where(nodetrans[:, 1] < suply_z[i] + trshd),
+                                   np.where(suply_z[i] - trshd < nodetrans[:, 1]))
+
+    for j in temp3_r_index:  # 通用性提高
+        if np.intersect1d(j, temp3_z_index) is not None:  # & & find(temp_rz_index(j) == temp_z_index(:))
+            coupled_3D_temp[0, tt] = j
+            tt += 1
+
+    coupled_3D_index = np.concatenate((coupled_3D_index, coupled_3D_temp), axis=0)  # 拼接行
+
+''' 筛选除待更新节点外的固定节点 '''
+delete_3D_index = coupled_3D_index.reshape(1, coupled_3D_index.shape[0] * coupled_3D_index.shape[1]).astype(int)
+nodefixed = np.delete(nodeinitial, delete_3D_index - 1, 0)  # 删除待更新节点坐标信息
+
+''' cubic插值（求解chebyshev点对应的Z坐标值） '''
+left_R = nodetrans[left_index, 0]  # left(:,3)
+left_Z = nodetrans[left_index, 1]  # left(:,2)
+for kind in ["cubic"]:  # 插值方式["nearest", "zero", "slinear", "quadratic", "cubic"] , "nearest","zero"为阶梯插值, slinear 线性插值, "quadratic","cubic" 为2阶、3阶B样条曲线插值
+    f = interpolate.interp1d(left_R, left_Z, kind=kind)
+    left_cheby_z = f(left_cheby_r)        # R的值不能重复   作为PSO初始边界
+
+right_R = nodetrans[right_index, 0]
+right_Z = nodetrans[right_index, 1]
+for kind in ["cubic"]:
+    f = interpolate.interp1d(right_R, right_Z, kind=kind)
+    right_cheby_z = f(right_cheby_r)      # R的值不能重复   作为PSO初始边界
