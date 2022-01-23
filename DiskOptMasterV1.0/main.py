@@ -13,11 +13,13 @@
 import numpy as np
 import math
 import pandas as pd
+from functools import reduce
 from numpy import exp, abs, angle
 import numpy as py
 import xlwt as xlwt
 
 mn = 4  # 网格的中间节点数（输入！！！）
+Size = 50        # 粒子组数
 
 # 导入数据
 # couplednodes = pd.read_table(r"couplednodes.txt", sep=",", header=None) # 按行读文本
@@ -134,10 +136,41 @@ for i in range(copnds.shape[0]):
 
 # 2D端面内节点索引匹配
 deltadis_t = np.sqrt(deltadis_r ** 2 + deltadis_z ** 2)
-trshd = np.min(deltadis_t) / 3         # 比较关键
+trshd = np.min(deltadis_t) / 2  # 比较关键
 
-temp_rz_face = np.zeros((facenodes.shape[0], 3))   # 端面nrz坐标索引
+temp_rz_face = np.zeros((facenodes.shape[0], 3))  # 端面nrz坐标索引
 for i in range(facenodes.shape[0]):
     temp_rz_face[i, 0] = facenodes[i, 0]
     temp_rz_face[i, 1] = nodetrans[int(facenodes[i, 0] - 1), 0]
     temp_rz_face[i, 2] = nodetrans[int(facenodes[i, 0] - 1), 1]
+
+for i in range(copnds.shape[0]):
+    for j in range(mn + 2):
+        temp_r_index = temp_rz_face[reduce(np.intersect1d, [np.where(temp_rz_face[:, 1] < coupled_2D_ndr[i, j] + trshd),
+                                                            np.where(temp_rz_face[:, 1] > coupled_2D_ndr[
+                                                                i, j] - trshd)]), 0]  # 多数组求交
+        temp_z_index = temp_rz_face[np.intersect1d(np.where(temp_rz_face[:, 2] < coupled_2D_ndz[i, j] + trshd),
+                                                   np.where(temp_rz_face[:, 2] > coupled_2D_ndz[i, j] - trshd)), 0]
+
+        for k in temp_r_index:  # 提高通用性
+            if np.intersect1d(k, temp_z_index) is not None:
+                coupled_2D_temp[i, j] = nodetrans[int(k), 2]
+
+tt = 0
+coupled_2D_index = np.zeros((copnds.shape[0] * (mn + 2), 1))
+for j in range(mn + 2):           # 数据整理
+    for i in range(copnds.shape[0]):
+        coupled_2D_index[tt, 0] = coupled_2D_temp[i, j]
+        tt += 1
+
+coupled_2D_ntr = np.zeros((coupled_2D_index.shape[0], 1))             # 后续使用
+coupled_2D_ntz = np.zeros((coupled_2D_index.shape[0], Size))           # 后续使用
+for i in range(coupled_2D_index.shape[0]):
+    coupled_2D_ntr[i, 0] = nodetrans[int(coupled_2D_index[i, 0]) - 1, 0]
+
+# 3D待优化区内节点索引匹配
+trshd = 0.2    # 比较关键
+coupled_3D_index = np.zeros((coupled_2D_index.shape[0], mn+2))
+coupled_3D_index[:, 5] = coupled_2D_index
+for i in range(coupled_2D_index.shape[0]):
+    for j in range(zn):
