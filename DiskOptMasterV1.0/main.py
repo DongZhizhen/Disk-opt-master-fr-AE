@@ -233,14 +233,18 @@ delete_3D_index = coupled_3D_index.reshape(1, coupled_3D_index.shape[0] * couple
 nodefixed = np.delete(nodeinitial, delete_3D_index - 1, 0)  # 删除待更新节点坐标信息
 
 ''' cubic插值（求解chebyshev点对应的Z坐标值） '''
-left_R = nodetrans[left_index, 0]  # left(:,3)
-left_Z = nodetrans[left_index, 1]  # left(:,2)
+for i in range(left.shape[0])
+    left_R = nodetrans[left[i] - 1, 0]  # left(:,3)
+    left_Z = nodetrans[left[i] - 1, 1]  # left(:,2)
+    
 for kind in ["cubic"]:  # 插值方式["nearest", "zero", "slinear", "quadratic", "cubic"] , "nearest","zero"为阶梯插值, slinear 线性插值, "quadratic","cubic" 为2阶、3阶B样条曲线插值
     f = interpolate.interp1d(left_R, left_Z, kind=kind)
     left_cheby_z = f(left_cheby_r)        # R的值不能重复   作为PSO初始边界
 
-right_R = nodetrans[right_index, 0]
-right_Z = nodetrans[right_index, 1]
+for i in range(right.shape[0])
+    right_R = nodetrans[right[i] - 1, 0]
+    right_Z = nodetrans[right[i] - 1, 1]
+    
 for kind in ["cubic"]:
     f = interpolate.interp1d(right_R, right_Z, kind=kind)
     right_cheby_z = f(right_cheby_r)      # R的值不能重复   作为PSO初始边界
