@@ -237,14 +237,13 @@ for i in range(left.shape[0])
     left_R[i] = nodetrans[left[i] - 1, 0]  # left(:,3)
     left_Z[i] = nodetrans[left[i] - 1, 1]  # left(:,2)
     
-for kind in ["cubic"]:  # 插值方式["nearest", "zero", "slinear", "quadratic", "cubic"] , "nearest","zero"为阶梯插值, slinear 线性插值, "quadratic","cubic" 为2阶、3阶B样条曲线插值
-    f = interpolate.interp1d(left_R, left_Z, kind=kind)
+# for kind in ["cubic"]:  # 插值方式["nearest", "zero", "slinear", "quadratic", "cubic"] , "nearest","zero"为阶梯插值, slinear 线性插值, "quadratic","cubic" 为2阶、3阶B样条曲线插值
+    f = interpolate.interp1d(left_R, left_Z, kind="cubic")
     left_cheby_z = f(left_cheby_r)        # R的值不能重复   作为PSO初始边界
 
 for i in range(right.shape[0])
     right_R[i] = nodetrans[right[i] - 1, 0]
     right_Z[i] = nodetrans[right[i] - 1, 1]
-    
-for kind in ["cubic"]:
-    f = interpolate.interp1d(right_R, right_Z, kind=kind)
-    right_cheby_z = f(right_cheby_r)      # R的值不能重复   作为PSO初始边界
+
+f = interpolate.interp1d(right_R, right_Z, kind="cubic")
+right_cheby_z = f(right_cheby_r)      # R的值不能重复   作为PSO初始边界
