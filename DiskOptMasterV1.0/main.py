@@ -233,6 +233,10 @@ delete_3D_index = coupled_3D_index.reshape(1, coupled_3D_index.shape[0] * couple
 nodefixed = np.delete(nodeinitial, delete_3D_index - 1, 0)  # 删除待更新节点坐标信息
 
 ''' cubic插值（求解chebyshev点对应的Z坐标值） '''
+left_R = np.zeros((left.shape[0], 1))
+left_Z = np.zeros((left.shape[0], 1))
+right_R = np.zeros((right.shape[0], 1))
+right_Z = np.zeros((right.shape[0], 1))
 for i in range(left.shape[0])
     left_R[i] = nodetrans[left[i] - 1, 0]  # left(:,3)
     left_Z[i] = nodetrans[left[i] - 1, 1]  # left(:,2)
