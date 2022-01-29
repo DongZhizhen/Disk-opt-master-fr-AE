@@ -21,6 +21,7 @@ import pylab as pl
 mn = 4  # 网格的中间节点数（输入！！！）
 bn = 1  # 叶片网格层数
 Size = 50  # 粒子组数
+G = 600    # 最大迭代次数
 
 # 导入数据
 # couplednodes = pd.read_table(r"couplednodes.txt", sep=",", header=None) # 按行读文本
@@ -233,25 +234,53 @@ delete_3D_index = coupled_3D_index.reshape(1, coupled_3D_index.shape[0] * couple
 nodefixed = np.delete(nodeinitial, delete_3D_index - 1, 0)  # 删除待更新节点坐标信息
 
 ''' cubic插值（求解chebyshev点对应的Z坐标值） '''
-left_R = np.zeros((left.shape[0], 1))
-left_Z = np.zeros((left.shape[0], 1))
-right_R = np.zeros((right.shape[0], 1))
-right_Z = np.zeros((right.shape[0], 1))
-for i in range(left.shape[0])
-    left_R[i] = nodetrans[left[i] - 1, 0]  # left(:,3)
-    left_Z[i] = nodetrans[left[i] - 1, 1]  # left(:,2)
-    
-# for kind in ["cubic"]:  # 插值方式["nearest", "zero", "slinear", "quadratic", "cubic"] , "nearest","zero"为阶梯插值, slinear 线性插值, "quadratic","cubic" 为2阶、3阶B样条曲线插值
-    f = interpolate.interp1d(left_R, left_Z, kind="cubic")
-    left_cheby_z = f(left_cheby_r)        # R的值不能重复   作为PSO初始边界
+left_R = np.zeros(left.shape[0])
+left_Z = np.zeros(left.shape[0])
+right_R = np.zeros(right.shape[0])
+right_Z = np.zeros(right.shape[0])
+for i in range(left.shape[0]):
+    left_R[i] = nodetrans[left[i, 0] - 1, 0]  # left(:,3)
+    left_Z[i] = nodetrans[left[i, 0] - 1, 1]  # left(:,2)
 
-for i in range(right.shape[0])
-    right_R[i] = nodetrans[right[i] - 1, 0]
-    right_Z[i] = nodetrans[right[i] - 1, 1]
+# for kind in ["cubic"]:  # 插值方式["nearest", "zero", "slinear", "quadratic", "cubic"] , "nearest","zero"为阶梯插值, slinear 线性插值, "quadratic","cubic" 为2阶、3阶B样条曲线插值
+f = interpolate.interp1d(left_R, left_Z, kind="cubic")
+left_cheby_z = f(left_cheby_r)  # R的值不能重复   作为PSO初始边界
+
+for i in range(right.shape[0]):
+    right_R[i] = nodetrans[right[i, 0] - 1, 0]
+    right_Z[i] = nodetrans[right[i, 0] - 1, 1]
 
 f = interpolate.interp1d(right_R, right_Z, kind="cubic")
-right_cheby_z = f(right_cheby_r)      # R的值不能重复   作为PSO初始边界
+right_cheby_z = f(right_cheby_r)  # R的值不能重复   作为PSO初始边界
+pl.plot(left_cheby_z, left_cheby_r, "ro", right_cheby_z, right_cheby_r, "bo")
 
 ''' PSOA初始化 '''
+left_min_z = left_cheby_z - [0.5, 0.6, 0.7, 0.8, 0.8, 0.7, 0.6, 0.5]  # 参数搜索范围
+left_max_z = left_cheby_z + [2, 3, 4.5, 5, 4.5, 4, 3, 2]
+right_min_z = right_cheby_z - [2, 3, 4.5, 5, 5, 4.5, 3, 2]  # 参数搜索范围
+right_max_z = right_cheby_z + [0.5, 0.6, 0.7, 0.8, 0.8, 0.7, 0.6, 0.5]
+
+MinX = np.hstack((left_min_z, right_min_z))
+MaxX = np.hstack((left_max_z, right_max_z))
+
+Vmax = 1
+Vmin = -1  # 限定速度的范围
+
+CodeL = len(left_min_z) + len(right_min_z)         # 参数个数
+
+c1=1.9;c2=2.0;c3=0.1;c4=0.15   # 学习因子
+wmax=0.9;wmin=0.4 # 惯性权重范围
+
+w = np.zeros(G)
+for i in range(G):
+    w[i-1] = wmax - ((wmax - wmin) / (G - 1)) * i
+
+X = np.zeros(n)
+v = np.zeros(n)
+for i in range(int(CodeL / 2)):      # 参数个数
+    X[:, i] = left_cheby_z[i] + (left_max_z[i] - left_min_z[i]) * np.random.random(Size)
+    X[:, CodeL/2+i] = right_cheby_z[i] + (right_max_z[i] - right_min_z[i]) * np.random.random(Size)
+    v[:, i] = Vmin + (Vmax - Vmin) * np.random.random(Size)
+    v[:, CodeL/2+i] = Vmin + (Vmax - Vmin) * np.random.random(Size)
 
 
