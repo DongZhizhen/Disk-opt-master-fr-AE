@@ -275,12 +275,57 @@ w = np.zeros(G)
 for i in range(G):
     w[i-1] = wmax - ((wmax - wmin) / (G - 1)) * i
 
-X = np.zeros(n)
-v = np.zeros(n)
-for i in range(int(CodeL / 2)):      # 参数个数
-    X[:, i] = left_cheby_z[i] + (left_max_z[i] - left_min_z[i]) * np.random.random(Size)
-    X[:, CodeL/2+i] = right_cheby_z[i] + (right_max_z[i] - right_min_z[i]) * np.random.random(Size)
-    v[:, i] = Vmin + (Vmax - Vmin) * np.random.random(Size)
-    v[:, CodeL/2+i] = Vmin + (Vmax - Vmin) * np.random.random(Size)
+X = np.zeros((Size, CodeL))
+v = np.zeros((Size, CodeL))
+for i in range(Size):
+    for j in range(int(CodeL / 2)):      # 参数个数
+        X[i, j] = left_cheby_z[j] + (left_max_z[j] - left_min_z[j]) * np.random.random(1)
+        X[i, int(CodeL / 2 + j)] = right_cheby_z[j] + (right_max_z[j] - right_min_z[j]) * np.random.random(1)
+        v[i, j] = Vmin + (Vmax - Vmin) * np.random.random(1)
+        v[i, int(CodeL / 2 + j)] = Vmin + (Vmax - Vmin) * np.random.random(1)
 
+#
+# for i=1:1:Size
+# 	ssaleft=ssa([nodetrans(2956,2),nodetrans(2947,2),X(i,1:CodeL/2),nodetrans(2623,2),nodetrans(2624,2)]);
+# 	X(i,1:CodeL/2)=ssaleft(3:length(ssaleft)-2);
+# 	ssaright=ssa([nodetrans(2730,2),nodetrans(2734,2),X(i,CodeL/2+1:CodeL),nodetrans(2681,2),nodetrans(2684,2)]);
+# 	X(i,CodeL/2+1:CodeL)=ssaright(3:length(ssaright)-2);
+# end
+
+''' 切比雪夫转换为节点坐标 '''
+# transformation
+
+''' 过渡段网格调整 '''
+join = np.array(pd.read_excel(r"nodedata.xlsx", sheet_name='join', header=None))[:20, :3]
+join_lu_index = join[1:4, :]
+join_ru_index = join[5:8, :]
+join_ld_index = join[9:14, :]
+join_rd_index = join[15:20, :]
+
+# 过渡段矩阵初始化(左上，右上，左下，右下）
+join_lu_z = np.zeros([join_lu_index.shape[0], join_lu_index.shape[1], Size], dtype=int)  # int? 待确认
+join_ru_z = np.zeros([join_ru_index.shape[0], join_ru_index.shape[1], Size], dtype=int)
+join_ld_z = np.zeros([join_ld_index.shape[0], join_ld_index.shape[1], Size], dtype=int)
+join_rd_z = np.zeros([join_rd_index.shape[0], join_rd_index.shape[1], Size], dtype=int)
+
+join_lu_r = np.zeros([join_lu_index.shape[0], join_lu_index.shape[1], Size], dtype=int)
+join_ru_r = np.zeros([join_ru_index.shape[0], join_ru_index.shape[1], Size], dtype=int)
+join_ld_r = np.zeros([join_ld_index.shape[0], join_ld_index.shape[1], Size], dtype=int)
+join_rd_r = np.zeros([join_rd_index.shape[0], join_rd_index.shape[1], Size], dtype=int)
+
+# 初始赋值，根据相对节点，给予原始Z值
+for i in range(join.shape[1]):        # 按列排列
+    join_lu_z[:, i, 1] = nodetrans[(join_lu_index[:, i] - 1).astype(int), 1]
+    join_ru_z[:, i, 1] = nodetrans[(join_ru_index[:, i] - 1).astype(int), 1]
+
+
+for i in range(join.shape[1]):        # 按列排列
+    join_ld_z[:, i, 1] = nodetrans[(join_ld_index[:, i] - 1).astype(int), 1]
+    join_rd_z[:, i, 1] = nodetrans[(join_rd_index[:, i] - 1).astype(int), 1]
+
+
+# 补齐固定节点（调试过程可注释掉）
+for i in range(Size):
+    join_lu_z[1, :, i] = join_lu_z[1, :, 1]
+    join_ru_z[1, :, i] = join_ru_z[1, :, 1]
 
